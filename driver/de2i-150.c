@@ -183,9 +183,13 @@ static ssize_t my_read(struct file* filp, char __user* buf, size_t count, loff_t
 	int to_cpy = 0;
 	static unsigned int temp_read = 0;
 
-	/* read from the """device""" */
-	//temp_read = ioread32(read_pointer);
-	temp_read = 0x40792430; // fake ioread32
+	if(read_pointer == NULL) {
+		printk("my_driver: trying to read to a device region not set yet\n")
+		return -ECANCELED;
+	}
+
+	/* read from the device */
+	temp_read = ioread32(read_pointer);
 	printk("my_driver: red 0x%X from the %s\n", temp_read, perf_names[read_name_index]);
 
 	/* get amount of bytes to copy to user */
@@ -204,6 +208,11 @@ static ssize_t my_write(struct file* filp, const char __user* buf, size_t count,
 	int to_cpy = 0;
 	static unsigned int temp_write = 0;
 
+	if(write_pointer == NULL) {
+		printk("my_driver: trying to write to a device region not set yet\n")
+		return -ECANCELED;
+	}
+ 
 	/* get amount of bytes to copy from user */
 	to_cpy = (count <= sizeof(temp_write)) ? count : sizeof(temp_write);
 
@@ -211,7 +220,7 @@ static ssize_t my_write(struct file* filp, const char __user* buf, size_t count,
 	retval = to_cpy - copy_from_user(&temp_write, buf, to_cpy);
 
 	/* send to """device""" */
-	//iowrite32(temp_write, write_pointer);
+	iowrite32(temp_write, write_pointer);
 	printk("my_writer: wrote 0x%X to the %s\n", temp_write, perf_names[write_name_index]);
 
 	return retval;
@@ -273,7 +282,7 @@ static int my_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	resource = pci_resource_start(dev, 0);
 	printk("my_driver: PCI device resources start at bar 0: 0x%lx\n", resource);
 	
-	// Precisa definir o valor do endereço baseado no endereço mapeado na memória.
+	// Precisa definir o valor do endereço baseado no endereço mapeado na placa.
 
 	display_r = ioremap(resource + 0xC000, 0x20);
 	display_l = ioremap(resource + 0xC140, 0x20);
